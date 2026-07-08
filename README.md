@@ -4,6 +4,12 @@ Industrial Telemetry Monitor is a backend-only Industrial IoT demo. It simulates
 
 This is intentionally small and interview-demo friendly. There is no frontend, authentication, cloud deployment, Kubernetes, Kafka, RabbitMQ, TimescaleDB, or complex machine learning.
 
+## Demo Video
+
+Watch the project demo on YouTube:
+
+[Industrial Telemetry Monitor Demo](https://youtu.be/V-h26fL3gwU)
+
 ## Architecture
 
 ```text
