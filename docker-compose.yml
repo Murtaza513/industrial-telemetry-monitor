@@ -1,0 +1,72 @@
+﻿services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: industrial-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: industrial_telemetry
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d industrial_telemetry"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    container_name: industrial-mqtt-broker
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t '$$SYS/#' -C 1 -W 2 || true"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: industrial-backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/industrial_telemetry
+      MQTT_HOST: mqtt-broker
+      MQTT_PORT: 1883
+      MQTT_TOPIC: industrial/machines/+/telemetry
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - mqtt-broker
+
+  machine-simulator:
+    build: ./machine_simulator
+    container_name: industrial-machine-simulator
+    environment:
+      MQTT_HOST: mqtt-broker
+      MQTT_PORT: 1883
+      MQTT_TOPIC_PREFIX: industrial/machines
+    depends_on:
+      - mqtt-broker
+      - backend
+
+  demo-client:
+    image: python:3.12-slim
+    container_name: industrial-demo-client
+    working_dir: /app
+    volumes:
+      - ./demo_client.py:/app/demo_client.py:ro
+    environment:
+      API_BASE_URL: http://backend:8000
+    command: sh -c "pip install --no-cache-dir requests && python demo_client.py"
+    depends_on:
+      - backend
+    profiles:
+      - demo
+
+volumes:
+  postgres_data:
